@@ -3,15 +3,15 @@ import requests
 import json
 
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for
+    Blueprint, redirect, request
 )
-from werkzeug.security import check_password_hash, generate_password_hash
-
+from flask_cors import CORS, cross_origin
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 @bp.route('/login', methods=('GET', 'POST'))
+@cross_origin()
 def login():
     if request.method == 'POST':
         req_data = request.get_json()
@@ -30,21 +30,25 @@ def login():
                 r = requests.post(
                     'https://6u3td6zfza.execute-api.us-east-2.amazonaws.com/prod/user/login', data=json.dumps(data))
                 print(r.text)
-                # data = r.json()
-                return r.text
+                return {
+                    "error": False,
+                    "data": r.text
+                }
             except requests.exceptions.Timeout:
                 error = "timeout"
             except requests.exceptions.TooManyRedirects:
                 error = "too many redirects"
             except requests.exceptions.RequestException as e:
                 raise SystemExit(e)
-            else:
-                return data
 
-    return error
+    return {
+        "error": True,
+        "data": error
+    }
 
 
 @bp.route('/authdata', methods=('GET', 'POST'))
+@cross_origin()
 def datafetch():
     if request.method == 'GET':
         error = None
@@ -52,14 +56,48 @@ def datafetch():
             r = requests.get(
                 'https://6u3td6zfza.execute-api.us-east-2.amazonaws.com/prod/user/transactions')
             print(r.text)
-            # data = r.json()
-            return r.text
+            return {
+                "error": False,
+                "data": r.text
+            }
         except requests.exceptions.Timeout:
             error = "timeout"
         except requests.exceptions.TooManyRedirects:
             error = "too many redirects"
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
-        else:
-            return data
-    return error
+
+    return {
+        "error": True,
+        "data": error
+    }
+
+
+@bp.route('/cancel', methods=('GET', 'POST'))
+@cross_origin()
+def cancel():
+    if request.method == 'POST':
+        error = None
+        req_data = request.get_json()
+        try:
+            with open("transaction.txt", "a") as fo:
+                fo.write(json.dumps(req_data))
+                fo.write("\n")
+                fo.close()
+            return {
+                "error": False,
+                "data": {
+                    "code": 200,
+                    "status": "Success"
+                }
+            }
+        except:
+            error = "Error cancelling transaction"
+            return {
+                "error": True,
+                "data": error
+            }
+    return {
+        "error": True,
+        "data": "wrong http method"
+    }
